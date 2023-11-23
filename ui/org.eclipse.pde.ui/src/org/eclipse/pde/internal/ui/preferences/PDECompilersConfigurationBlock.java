@@ -16,6 +16,7 @@
 package org.eclipse.pde.internal.ui.preferences;
 
 import static org.eclipse.swt.events.SelectionListener.widgetSelectedAdapter;
+import static org.eclipse.swt.widgets.ControlUtil.executeWithRedrawDisabled;
 
 import java.text.MessageFormat;
 import java.util.ArrayList;
@@ -782,8 +783,7 @@ public class PDECompilersConfigurationBlock extends ConfigurationBlock {
 		if (composite == null) {
 			return;
 		}
-		try {
-			composite.setRedraw(false);
+		executeWithRedrawDisabled(composite, () -> {
 			Composite c = (Composite) composite.getContent();
 			if (c == null) {
 				return;
@@ -791,9 +791,7 @@ public class PDECompilersConfigurationBlock extends ConfigurationBlock {
 			Point newSize = c.computeSize(SWT.DEFAULT, SWT.DEFAULT);
 			composite.setMinSize(newSize);
 			c.layout(true);
-		} finally {
-			composite.setRedraw(true);
-		}
+		});
 	}
 
 	/**

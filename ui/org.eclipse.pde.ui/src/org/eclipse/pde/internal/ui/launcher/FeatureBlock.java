@@ -14,6 +14,7 @@
 package org.eclipse.pde.internal.ui.launcher;
 
 import static java.util.Objects.requireNonNull;
+import static org.eclipse.swt.widgets.ControlUtil.executeWithRedrawDisabled;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -282,17 +283,17 @@ public class FeatureBlock {
 			FeatureSelectionDialog dialog = new FeatureSelectionDialog(PDEPlugin.getActiveWorkbenchShell(), featureModels.toArray(new IFeatureModel[featureModels.size()]), true);
 			dialog.create();
 			if (dialog.open() == Window.OK) {
-				fTree.getControl().setRedraw(false);
-				fTree.removeFilter(fSelectedOnlyFilter);
-				Object[] selectedModels = dialog.getResult();
-				for (Object model : selectedModels) {
-					String id = ((IFeatureModel) model).getFeature().getId();
-					fTree.setChecked(fFeatureModels.get(id), true);
-				}
-				if (fFilterButton.getSelection()) {
-					fTree.addFilter(fSelectedOnlyFilter);
-				}
-				fTree.getControl().setRedraw(true);
+				executeWithRedrawDisabled(fTree.getControl(), () -> {
+					fTree.removeFilter(fSelectedOnlyFilter);
+					Object[] selectedModels = dialog.getResult();
+					for (Object model : selectedModels) {
+						String id = ((IFeatureModel) model).getFeature().getId();
+						fTree.setChecked(fFeatureModels.get(id), true);
+					}
+					if (fFilterButton.getSelection()) {
+						fTree.addFilter(fSelectedOnlyFilter);
+					}
+				});
 				updateCounter();
 			}
 		}
@@ -345,19 +346,19 @@ public class FeatureBlock {
 				}
 				fAdditionalPlugins.addAll(modelList);
 
-				fTree.getControl().setRedraw(false);
-				fTree.removeFilter(fSelectedOnlyFilter);
-				fTree.refresh();
-				for (PluginLaunchModel model : modelList) {
-					fTree.setChecked(model, true);
-				}
-				fTree.setSelection(new StructuredSelection(modelList.get(modelList.size() - 1)), true);
-				fTree.getTree().setSortColumn(fTree.getTree().getSortColumn());
-				fTree.getTree().setSortDirection(fTree.getTree().getSortDirection());
-				if (fFilterButton.getSelection()) {
-					fTree.addFilter(fSelectedOnlyFilter);
-				}
-				fTree.getControl().setRedraw(true);
+				executeWithRedrawDisabled(fTree.getControl(), () -> {
+					fTree.removeFilter(fSelectedOnlyFilter);
+					fTree.refresh();
+					for (PluginLaunchModel model : modelList) {
+						fTree.setChecked(model, true);
+					}
+					fTree.setSelection(new StructuredSelection(modelList.get(modelList.size() - 1)), true);
+					fTree.getTree().setSortColumn(fTree.getTree().getSortColumn());
+					fTree.getTree().setSortDirection(fTree.getTree().getSortDirection());
+					if (fFilterButton.getSelection()) {
+						fTree.addFilter(fSelectedOnlyFilter);
+					}
+				});
 				updateCounter();
 			}
 		}
@@ -440,18 +441,18 @@ public class FeatureBlock {
 					}
 				}
 
-				fTree.getControl().setRedraw(false);
-				fTree.removeFilter(fSelectedOnlyFilter);
-				for (String featureId : requiredFeatureIDs) {
-					Object featureModel = fFeatureModels.get(featureId);
-					if (featureModel != null) {
-						fTree.setChecked(featureModel, true);
+				executeWithRedrawDisabled(fTree.getControl(), () -> {
+					fTree.removeFilter(fSelectedOnlyFilter);
+					for (String featureId : requiredFeatureIDs) {
+						Object featureModel = fFeatureModels.get(featureId);
+						if (featureModel != null) {
+							fTree.setChecked(featureModel, true);
+						}
 					}
-				}
-				if (fFilterButton.getSelection()) {
-					fTree.addFilter(fSelectedOnlyFilter);
-				}
-				fTree.getControl().setRedraw(true);
+					if (fFilterButton.getSelection()) {
+						fTree.addFilter(fSelectedOnlyFilter);
+					}
+				});
 				updateCounter();
 			}
 		}
@@ -512,26 +513,26 @@ public class FeatureBlock {
 				model.setPluginResolution(IPDELauncherConstants.LOCATION_DEFAULT);
 			}
 
-			fTree.getControl().setRedraw(false);
-			fTree.removeFilter(fSelectedOnlyFilter);
-			fTree.setCheckedElements(new Object[0]); // Make sure the check state cache is cleared
-			fTree.refresh();
-			fTree.setAllChecked(true);
-			if (fFilterButton.getSelection()) {
-				fTree.addFilter(fSelectedOnlyFilter);
-			}
-			fTree.getControl().setRedraw(true);
+			executeWithRedrawDisabled(fTree.getControl(), () -> {
+				fTree.removeFilter(fSelectedOnlyFilter);
+				fTree.setCheckedElements(new Object[0]); // Make sure the check state cache is cleared
+				fTree.refresh();
+				fTree.setAllChecked(true);
+				if (fFilterButton.getSelection()) {
+					fTree.addFilter(fSelectedOnlyFilter);
+				}
+			});
 			updateCounter();
 		}
 
 		private void handleSelectAll(boolean state) {
-			fTree.getControl().setRedraw(false);
-			fTree.removeFilter(fSelectedOnlyFilter);
-			fTree.setAllChecked(state);
-			if (fFilterButton.getSelection()) {
-				fTree.addFilter(fSelectedOnlyFilter);
-			}
-			fTree.getControl().setRedraw(true);
+			executeWithRedrawDisabled(fTree.getControl(), () -> {
+				fTree.removeFilter(fSelectedOnlyFilter);
+				fTree.setAllChecked(state);
+				if (fFilterButton.getSelection()) {
+					fTree.addFilter(fSelectedOnlyFilter);
+				}
+			});
 			updateCounter();
 		}
 	}

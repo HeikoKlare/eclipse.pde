@@ -16,6 +16,7 @@
 package org.eclipse.pde.internal.ui.shared.target;
 
 import static org.eclipse.swt.events.SelectionListener.widgetSelectedAdapter;
+import static org.eclipse.swt.widgets.ControlUtil.executeWithRedrawDisabled;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -522,12 +523,12 @@ public class TargetContentsGroup {
 				fGroupComboPart.getControl().setEnabled(true);
 			}
 
-			fTree.getControl().setRedraw(false);
-			fTree.refresh(false);
-			fTree.expandAll();
-			updateCheckState();
-			updateButtons();
-			fTree.getControl().setRedraw(true);
+			executeWithRedrawDisabled(fTree.getControl(), () -> {
+				fTree.refresh(false);
+				fTree.expandAll();
+				updateCheckState();
+				updateButtons();
+			});
 		}));
 		fPluginModeButton.setSelection(true);
 		GridData gd = new GridData();
@@ -547,12 +548,12 @@ public class TargetContentsGroup {
 				fGroupComboPart.getControl().setEnabled(false);
 			}
 
-			fTree.getControl().setRedraw(false);
-			fTree.refresh(false);
-			fTree.expandAll();
-			updateCheckState();
-			updateButtons();
-			fTree.getControl().setRedraw(true);
+			executeWithRedrawDisabled(fTree.getControl(), () -> {
+				fTree.refresh(false);
+				fTree.expandAll();
+				updateCheckState();
+				updateButtons();
+			});
 		}));
 		fFeaureModeButton.setSelection(false);
 		gd = new GridData();
@@ -836,12 +837,12 @@ public class TargetContentsGroup {
 		if (index != fGrouping) {
 			// Refresh tree
 			fGrouping = index;
-			fTree.getControl().setRedraw(false);
-			fTree.refresh(false);
-			fTree.expandAll();
-			updateCheckState();
-			updateButtons();
-			fTree.getControl().setRedraw(true);
+			executeWithRedrawDisabled(fTree.getControl(), () -> {
+				fTree.refresh(false);
+				fTree.expandAll();
+				updateCheckState();
+				updateButtons();
+			});
 		}
 	}
 

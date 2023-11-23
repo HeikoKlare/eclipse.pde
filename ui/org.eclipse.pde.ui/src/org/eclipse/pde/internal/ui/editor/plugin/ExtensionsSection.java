@@ -19,6 +19,8 @@
  *******************************************************************************/
 package org.eclipse.pde.internal.ui.editor.plugin;
 
+import static org.eclipse.swt.widgets.ControlUtil.executeWithRedrawDisabled;
+
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -1458,8 +1460,7 @@ public class ExtensionsSection extends TreeSection implements IPropertyChangeLis
 					@Override
 					public void done(IJobChangeEvent event) {
 						if (aboutToRunPassed) { // restoring is only required if the job actually ran
-							try {
-								fFilteredTree.setRedraw(false);
+							executeWithRedrawDisabled(fFilteredTree, () -> {
 								ExtensionsPatternFilter extensionsPatternFilter = ((ExtensionsPatternFilter) fFilteredTree.getPatternFilter());
 								fExtensionTree.collapseAll();
 								Object[] leafs = extensionsPatternFilter.getMatchingLeafsAsArray();
@@ -1469,9 +1470,7 @@ public class ExtensionsSection extends TreeSection implements IPropertyChangeLis
 								if (selection != null && !(selection.isEmpty())) {
 									fExtensionTree.setSelection(selection, true);
 								}
-							} finally {
-								fFilteredTree.setRedraw(true);
-							}
+							});
 						}
 					}
 				});
