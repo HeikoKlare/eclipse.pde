@@ -33,8 +33,12 @@ import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.ProgressMonitorWrapper;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.core.runtime.SubMonitor;
+import org.eclipse.jdt.core.ICompilationUnit;
+import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IPackageFragment;
+import org.eclipse.jdt.core.IType;
+import org.eclipse.jdt.core.ITypeRoot;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.search.IJavaSearchConstants;
@@ -73,6 +77,8 @@ public class GatherUnusedDependenciesOperation implements IRunnableWithProgress 
 
 	private final IPluginModelBase fModel;
 	private List<Object> fList;
+	/** The packages that the analyzed project provides itself. */
+	private Set<String> fOwnPackages = Set.of();
 
 	public GatherUnusedDependenciesOperation(IPluginModelBase model) {
 		fModel = model;
@@ -87,12 +93,8 @@ public class GatherUnusedDependenciesOperation implements IRunnableWithProgress 
 		try (PdeProjectAnalyzer analyzer = new PdeProjectAnalyzer(fModel.getUnderlyingResource().getProject(), true)) {
 			analyzer.setImportPackage("*"); //$NON-NLS-1$
 			analyzer.calcManifest();
-			Packages imports = analyzer.getImports();
-			if (imports == null) {
-				computedPackages = Set.of();
-			} else {
-				computedPackages = imports.keySet().stream().map(PackageRef::getFQN).collect(Collectors.toSet());
-			}
+			computedPackages = getPackageNames(analyzer.getImports());
+			fOwnPackages = getPackageNames(analyzer.getContained());
 		} catch (InterruptedException e) {
 			throw e;
 		} catch (Exception e) {
@@ -149,6 +151,13 @@ public class GatherUnusedDependenciesOperation implements IRunnableWithProgress 
 		minimizeDependencies(usedPlugins, usedPackages, subMonitor);
 		removeBuddies();
 		removeReexported();
+	}
+
+	private static Set<String> getPackageNames(Packages packages) {
+		if (packages == null) {
+			return Set.of();
+		}
+		return packages.keySet().stream().map(PackageRef::getFQN).collect(Collectors.toSet());
 	}
 
 	/**
@@ -214,8 +223,8 @@ public class GatherUnusedDependenciesOperation implements IRunnableWithProgress 
 			SubMonitor subMonitor = SubMonitor.convert(monitor, packageFragments.length);
 			for (IPackageFragment fragment : packageFragments) {
 				if (fragment.hasChildren() && !fragment.isDefaultPackage()) {
-					SearchPattern pattern = SearchPattern.createPattern(fragment, IJavaSearchConstants.REFERENCES);
-					if (requestor.search(pattern, subMonitor.split(1))) {
+					SearchPattern pattern = createReferencesPattern(fragment);
+					if (pattern != null && requestor.search(pattern, subMonitor.split(1))) {
 						return true;
 					}
 				}
@@ -225,6 +234,41 @@ public class GatherUnusedDependenciesOperation implements IRunnableWithProgress 
 		}
 		// If we can't be sure better assume it is used!
 		return true;
+	}
+
+	/**
+	 * Returns the pattern to search for references to the given package of a
+	 * dependency, or <code>null</code> if there is nothing to refer to.
+	 * <p>
+	 * If the project provides that package itself, references to it need no
+	 * import statement and are thus not visible as package references. They can
+	 * then only be found by searching for references to the individual types of
+	 * the package, which are searched at once, as any match already tells that
+	 * the dependency is used.
+	 */
+	private SearchPattern createReferencesPattern(IPackageFragment fragment) throws JavaModelException {
+		if (!fOwnPackages.contains(fragment.getElementName())) {
+			return SearchPattern.createPattern(fragment, IJavaSearchConstants.REFERENCES);
+		}
+		SearchPattern pattern = null;
+		for (IJavaElement child : fragment.getChildren()) {
+			for (IType type : getTypes(child)) {
+				SearchPattern typePattern = SearchPattern.createPattern(type, IJavaSearchConstants.REFERENCES);
+				pattern = pattern == null ? typePattern : SearchPattern.createOrPattern(pattern, typePattern);
+			}
+		}
+		return pattern;
+	}
+
+	private static IType[] getTypes(IJavaElement packageFragmentChild) throws JavaModelException {
+		if (packageFragmentChild instanceof ICompilationUnit compilationUnit) {
+			return compilationUnit.getTypes();
+		}
+		if (packageFragmentChild instanceof ITypeRoot classFile) {
+			IType type = classFile.findPrimaryType();
+			return type != null ? new IType[] { type } : new IType[0];
+		}
+		return new IType[0];
 	}
 
 	private boolean isPackageReferenced(ImportPackageObject pkg, Requestor requestor, IProgressMonitor monitor) {

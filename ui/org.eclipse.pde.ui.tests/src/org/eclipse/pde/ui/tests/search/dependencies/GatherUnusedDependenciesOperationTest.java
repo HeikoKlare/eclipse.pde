@@ -86,6 +86,35 @@ public class GatherUnusedDependenciesOperationTest {
 				unusedPlugins.contains(bundleC));
 	}
 
+	@Test
+	public void testDependencyUsedFromPackageProvidedByBothBundlesIsNotFlaggedAsUnused() throws Exception {
+		// Bundle A: exports a package that bundle B provides as well
+		String bundleA = "common.bundle.a";
+		String commonPackage = "common.pkg";
+		IProject projectA = createJavaPluginProject(bundleA);
+		addExportedPackage(projectA, commonPackage);
+		createJavaSource(projectA, commonPackage, "A", """
+				public class A {
+				}
+				""");
+
+		// Bundle B: requires A and uses its API from within the common package,
+		// so that the reference requires no package import at all
+		String bundleB = "common.bundle.b";
+		IProject projectB = createJavaPluginProject(bundleB);
+		addRequiredBundle(projectB, bundleA);
+		createJavaSource(projectB, commonPackage, "B", """
+				public class B {
+					A field;
+				}
+				""");
+
+		buildProjects();
+		List<String> unusedPlugins = gatherUnusedDependencies(projectB);
+		assertFalse("Dependency to bundle A must not be flagged as unused although it is only used from a package "
+				+ "that bundle B provides as well", unusedPlugins.contains(bundleA));
+	}
+
 	private static IProject createManifestOnlyPluginProject(String symbolicName) throws Exception {
 		IBundleProjectService service = acquireBundleProjectService();
 		IProject project = ResourcesPlugin.getWorkspace().getRoot().getProject(symbolicName);
