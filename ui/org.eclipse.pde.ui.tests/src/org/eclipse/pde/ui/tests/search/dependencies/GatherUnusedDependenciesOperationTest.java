@@ -12,6 +12,7 @@ package org.eclipse.pde.ui.tests.search.dependencies;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 import java.io.ByteArrayInputStream;
 import java.lang.reflect.InvocationTargetException;
@@ -84,6 +85,57 @@ public class GatherUnusedDependenciesOperationTest {
 		assertFalse(
 				"Direct, used dependency to bundle C must not be flagged as unused just because bundle A reexports it",
 				unusedPlugins.contains(bundleC));
+	}
+
+	@Test
+	public void testTargetBundleDependencyUsedOnlyInByteCodeIsNotFlaggedAsUnused() throws Exception {
+		// Dependencies to bundles of the target platform are resolvable as jars
+		// during the analysis, unlike those to bundles of the workspace, so that
+		// they are subject to manifest calculation rules that do not apply here.
+		// The referred type IEclipseContext of org.eclipse.e4.core.contexts is
+		// only used as the return type of a method of another bundle, so that
+		// the reference is present in the byte code but in no source file.
+		String contextsBundle = "org.eclipse.e4.core.contexts";
+		String bundle = "targetplatform.bundle";
+		IProject project = createJavaPluginProject(bundle);
+		addRequiredBundle(project, "org.eclipse.e4.ui.model.workbench");
+		addRequiredBundle(project, "org.eclipse.e4.ui.workbench");
+		addRequiredBundle(project, contextsBundle);
+		createJavaSource(project, bundle, "UsesContext", """
+				import org.eclipse.e4.ui.model.application.ui.basic.MPart;
+				import org.eclipse.e4.ui.workbench.modeling.EModelService;
+
+				public class UsesContext {
+					public EModelService getModelService(MPart part) {
+						return part.getContext().get(EModelService.class);
+					}
+				}
+				""");
+
+		buildProjects();
+		List<String> unusedPlugins = gatherUnusedDependencies(project);
+		assertFalse("Dependency to target platform bundle " + contextsBundle + " must not be flagged as unused "
+				+ "although its type is only referred to by the byte code", unusedPlugins.contains(contextsBundle));
+	}
+
+	@Test
+	public void testUnusedTargetBundleDependencyIsFlaggedAsUnused() throws Exception {
+		// Counterpart to the used dependency to a target platform bundle: not
+		// being able to tell the packages of such a bundle apart from those of
+		// the other dependencies must not make every one of them appear as used
+		String contextsBundle = "org.eclipse.e4.core.contexts";
+		String bundle = "targetplatform.bundle.unused";
+		IProject project = createJavaPluginProject(bundle);
+		addRequiredBundle(project, contextsBundle);
+		createJavaSource(project, bundle, "UsesNothing", """
+				public class UsesNothing {
+				}
+				""");
+
+		buildProjects();
+		List<String> unusedPlugins = gatherUnusedDependencies(project);
+		assertTrue("Unused dependency to target platform bundle " + contextsBundle + " must be flagged as unused",
+				unusedPlugins.contains(contextsBundle));
 	}
 
 	private static IProject createManifestOnlyPluginProject(String symbolicName) throws Exception {
