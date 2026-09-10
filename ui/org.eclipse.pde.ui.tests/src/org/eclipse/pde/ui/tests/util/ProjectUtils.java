@@ -14,8 +14,10 @@
  *******************************************************************************/
 package org.eclipse.pde.ui.tests.util;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -29,6 +31,7 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 
 import org.eclipse.core.resources.IFile;
+import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IProjectDescription;
 import org.eclipse.core.resources.IWorkspace;
@@ -309,6 +312,32 @@ public class ProjectUtils {
 		setup.accept(description, bundleProjectService);
 		description.apply(null);
 		return project;
+	}
+
+	/**
+	 * Creates a compilation unit for the given type in the source folder
+	 * {@code src} of the given project, creating the folders of the given
+	 * package as needed. The body is placed below the package declaration, so
+	 * it may start with import declarations.
+	 */
+	public static void createJavaSource(IProject project, String packageName, String typeName, String body)
+			throws CoreException {
+		IFolder folder = project.getFolder("src");
+		if (!folder.exists()) {
+			folder.create(true, true, null);
+		}
+		for (String segment : packageName.split("\\.")) {
+			folder = folder.getFolder(segment);
+			if (!folder.exists()) {
+				folder.create(true, true, null);
+			}
+		}
+		String content = """
+				package %s;
+
+				%s""".formatted(packageName, body);
+		IFile javaFile = folder.getFile(typeName + ".java");
+		javaFile.create(new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8)), true, null);
 	}
 
 	// --- workspace project deletion ---

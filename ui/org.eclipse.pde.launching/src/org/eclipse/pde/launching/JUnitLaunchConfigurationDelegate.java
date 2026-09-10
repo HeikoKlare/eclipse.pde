@@ -233,7 +233,11 @@ public class JUnitLaunchConfigurationDelegate extends org.eclipse.jdt.junit.laun
 		if (isJUnitContainerProject(javaProject)) {
 			//if this is a junit container project it means a user can use additional classes (from the junit container and possible other) that
 			//are not required to be imported, we compute a fragment manifest here to add additional imports ...
-			try (PdeProjectAnalyzer analyzer = new PdeProjectAnalyzer(javaProject.getProject(), true, Set.of())) {
+			// Bundle-ClassPath is retained, so that the classes of all libraries
+			// are analyzed, and Require-Bundle, so that packages the project
+			// already obtains that way are not imported by the fragment again
+			try (PdeProjectAnalyzer analyzer = new PdeProjectAnalyzer(javaProject.getProject(), true,
+					Set.of(Constants.BUNDLE_CLASSPATH, Constants.REQUIRE_BUNDLE))) {
 				analyzer.setImportPackage("*"); //$NON-NLS-1$
 				String bsn = testPlugin.getId() + "-additional-test-probe-imports"; //$NON-NLS-1$
 				analyzer.setBundleSymbolicName(bsn);

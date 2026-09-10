@@ -17,6 +17,7 @@ import java.io.File;
 import java.io.InputStream;
 import java.util.Collection;
 import java.util.Set;
+import java.util.jar.Attributes;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 
@@ -64,22 +65,29 @@ public class PdeProjectAnalyzer extends Analyzer {
 		Jar jar = getJar();
 		Resource manifestResource = jar.getResource(JarFile.MANIFEST_NAME);
 		if (manifestResource != null) {
-			if (copyHeader.isEmpty()) {
-				jar.remove(JarFile.MANIFEST_NAME);
-			} else {
-				Manifest mf;
-				try (InputStream in = manifestResource.openInputStream()) {
-					mf = new Manifest(in);
-				}
-				jar.remove(JarFile.MANIFEST_NAME);
-				for (String header : copyHeader) {
-					String value = mf.getMainAttributes().getValue(header);
-					if (value != null) {
-						set(header, value);
-					}
+			Manifest mf;
+			try (InputStream in = manifestResource.openInputStream()) {
+				mf = new Manifest(in);
+			}
+			jar.remove(JarFile.MANIFEST_NAME);
+			// The analyzer's constructor adopts every header of the jar's
+			// manifest as a property, where it takes effect as an instruction
+			// for the analysis. Require-Bundle for example removes all packages
+			// provided by the required bundles from the computed imports. Only
+			// the requested headers may influence the analysis, so all others
+			// are dropped again. Adopting a header normalizes its name to the
+			// spelling that the analyzer expects, which a manifest need not
+			// use, as header names are case-insensitive, so the same
+			// normalization has to be applied to drop a header reliably.
+			Attributes attributes = mf.getMainAttributes();
+			attributes.keySet().stream().map(Object::toString).map(PdeProjectAnalyzer::normalizeKey)
+					.forEach(getProperties()::remove);
+			for (String header : copyHeader) {
+				String value = attributes.getValue(header);
+				if (value != null) {
+					set(header, value);
 				}
 			}
-
 		}
 	}
 

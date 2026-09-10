@@ -10,19 +10,16 @@
  *******************************************************************************/
 package org.eclipse.pde.ui.tests.search.dependencies;
 
+import static org.eclipse.pde.ui.tests.util.ProjectUtils.createJavaSource;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-import java.io.ByteArrayInputStream;
 import java.lang.reflect.InvocationTargetException;
-import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Stream;
 
-import org.eclipse.core.resources.IFile;
-import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IncrementalProjectBuilder;
 import org.eclipse.core.resources.ResourcesPlugin;
@@ -191,27 +188,6 @@ public class GatherUnusedDependenciesOperationTest {
 				.concat(presentBundles != null ? Arrays.stream(presentBundles) : Stream.empty(), Stream.of(addedBundle))
 				.toArray(IRequiredBundleDescription[]::new));
 		description.apply(null);
-	}
-
-	private static void createJavaSource(IProject project, String packageName, String typeName, String body)
-			throws CoreException {
-		IPath packagePath = IPath.fromOSString("src").append(packageName.replace('.', '/'));
-		IFolder packageFolder = project.getFolder(packagePath);
-		if (!packageFolder.exists()) {
-			IFolder parent = project.getFolder(IPath.fromOSString("src"));
-			for (String segment : packageName.split("\\.")) {
-				parent = parent.getFolder(segment);
-				if (!parent.exists()) {
-					parent.create(true, true, null);
-				}
-			}
-		}
-		IFile javaFile = packageFolder.getFile(typeName + ".java");
-		String content = """
-				package %s;
-
-				%s""".formatted(packageName, body);
-		javaFile.create(new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8)), true, null);
 	}
 
 	private static IBundleProjectService acquireBundleProjectService() {
