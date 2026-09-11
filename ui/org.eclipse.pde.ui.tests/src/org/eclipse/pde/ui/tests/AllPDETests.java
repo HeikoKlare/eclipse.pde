@@ -37,6 +37,7 @@ import org.eclipse.pde.ui.tests.project.DynamicPluginProjectReferencesTest;
 import org.eclipse.pde.ui.tests.project.PluginRegistryTests;
 import org.eclipse.pde.ui.tests.project.ProjectCreationTests;
 import org.eclipse.pde.ui.tests.runtime.AllPDERuntimeTests;
+import org.eclipse.pde.ui.tests.search.dependencies.ExtensionPackageFinderTest;
 import org.eclipse.pde.ui.tests.search.dependencies.GatherUnusedDependenciesOperationTest;
 import org.eclipse.pde.ui.tests.target.AllTargetTests;
 import org.eclipse.pde.ui.tests.util.PDELabelProviderTest;
@@ -76,6 +77,7 @@ import org.junit.platform.suite.api.Suite;
 	AllPDECoreTests.class, //
 	ProjectSmartImportTest.class, //
 	GatherUnusedDependenciesOperationTest.class, //
+	ExtensionPackageFinderTest.class, //
 	PDELabelProviderTest.class, //
 	ProductInfoSectionTest.class, //
 })
