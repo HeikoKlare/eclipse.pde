@@ -26,6 +26,7 @@ import java.util.ListIterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.runtime.CoreException;
@@ -98,6 +99,10 @@ public class GatherUnusedDependenciesOperation implements IRunnableWithProgress 
 		} catch (Exception e) {
 			throw new InvocationTargetException(e);
 		}
+		// the byte code does not refer to the types that the extensions
+		// reference, so their packages have to be added to the computed ones
+		computedPackages = Stream.concat(computedPackages.stream(),
+				ExtensionPackageFinder.findPackagesInExtensions(fModel).stream()).collect(Collectors.toSet());
 		ImportPackageObject[] packages = null;
 		IBundle bundle = ((IBundlePluginModelBase) fModel).getBundleModel().getBundle();
 		IManifestHeader header = bundle.getManifestHeader(Constants.IMPORT_PACKAGE);
