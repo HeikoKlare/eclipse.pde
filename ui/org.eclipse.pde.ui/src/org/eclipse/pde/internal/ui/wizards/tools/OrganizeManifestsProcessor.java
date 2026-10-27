@@ -81,7 +81,7 @@ public class OrganizeManifestsProcessor extends RefactoringProcessor implements 
 	List<IProject> fProjectList;
 	private IProject fCurrentProject;
 	private boolean fComputeImports;
-	private int fMissingSchemaSeverity = RefactoringStatus.OK;
+	private int fMissingSchemaSeverity = RefactoringStatus.FATAL;
 
 	public OrganizeManifestsProcessor(List<IProject> projects) {
 		fProjectList = projects;
@@ -382,10 +382,10 @@ public class OrganizeManifestsProcessor extends RefactoringProcessor implements 
 	/**
 	 * Sets how extensions are reported whose extension point has no schema when
 	 * unused dependencies are removed, as the types they reference cannot be
-	 * found. {@link RefactoringStatus#OK} (the default) does not report them,
+	 * found. {@link RefactoringStatus#FATAL} (the default) or
+	 * {@link RefactoringStatus#ERROR} makes the refactoring fail,
 	 * {@link RefactoringStatus#WARNING} reports them for confirmation and
-	 * {@link RefactoringStatus#ERROR} or {@link RefactoringStatus#FATAL} makes
-	 * the refactoring fail.
+	 * {@link RefactoringStatus#OK} does not report them.
 	 */
 	public void setMissingSchemaSeverity(int severity) {
 		fMissingSchemaSeverity = severity;

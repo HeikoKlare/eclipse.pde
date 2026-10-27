@@ -167,8 +167,13 @@ public class GatherUnusedDependenciesOperationExtensionsTest {
 
 		buildProjects();
 		String extensionPoint = "consumer.severity." + EXTENSION_POINT_ID;
+		OrganizeManifestsProcessor defaultProcessor = new OrganizeManifestsProcessor(List.of(projectConsumer));
+		defaultProcessor.setUnusedDependencies(true);
+		assertTrue("Missing schemas must make the refactoring fail by default",
+				defaultProcessor.checkFinalConditions(new NullProgressMonitor(), null).hasFatalError());
+
 		RefactoringStatus ignored = checkOrganizeManifests(projectConsumer, true, RefactoringStatus.OK);
-		assertTrue("Missing schemas must not be reported by default", ignored.isOK());
+		assertTrue("Missing schemas must not be reported if ignored", ignored.isOK());
 
 		RefactoringStatus warning = checkOrganizeManifests(projectConsumer, true, RefactoringStatus.WARNING);
 		assertEquals(RefactoringStatus.WARNING, warning.getSeverity());
