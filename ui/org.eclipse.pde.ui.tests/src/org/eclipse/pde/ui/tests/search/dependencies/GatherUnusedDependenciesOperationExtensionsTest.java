@@ -19,14 +19,21 @@ import static org.eclipse.pde.ui.tests.search.dependencies.GatherUnusedDependenc
 import static org.eclipse.pde.ui.tests.search.dependencies.GatherUnusedDependenciesTestUtils.createJavaSource;
 import static org.eclipse.pde.ui.tests.search.dependencies.GatherUnusedDependenciesTestUtils.gatherUnusedDependencies;
 import static org.eclipse.pde.ui.tests.search.dependencies.GatherUnusedDependenciesTestUtils.gatherUnusedPackageImports;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.util.List;
+import java.util.Set;
 
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
+import org.eclipse.core.runtime.NullProgressMonitor;
+import org.eclipse.ltk.core.refactoring.RefactoringStatus;
+import org.eclipse.pde.core.plugin.PluginRegistry;
+import org.eclipse.pde.internal.ui.search.dependencies.ExtensionPackageFinder;
+import org.eclipse.pde.internal.ui.wizards.tools.OrganizeManifestsProcessor;
 import org.eclipse.pde.ui.tests.util.ProjectUtils;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -125,9 +132,7 @@ public class GatherUnusedDependenciesOperationExtensionsTest {
 	public void testDependencyOnlyReferencedByTypeOfExtensionPointWithoutSchemaIsFlaggedAsUnused() throws Exception {
 		String bundleProvider = "provider.noschema";
 		String packageProvider = createProviderBundle(bundleProvider);
-		IProject projectConsumer = createJavaPluginProject("consumer.noschema", null, true);
-		addRequiredBundle(projectConsumer, bundleProvider);
-		createExtensionFile(projectConsumer, "plugin", "plugin.xml", "consumer.noschema", false, """
+		IProject projectConsumer = createConsumerBundleWithoutSchema("consumer.noschema", bundleProvider, """
 				<client class="%s.Sample"/>
 				""".formatted(packageProvider));
 
@@ -135,6 +140,69 @@ public class GatherUnusedDependenciesOperationExtensionsTest {
 		List<String> unusedPlugins = gatherUnusedDependencies(projectConsumer);
 		assertTrue("Dependency must be flagged as unused although a value names a type, because without a schema "
 				+ "there is no declaration of which attributes hold a type", unusedPlugins.contains(bundleProvider));
+	}
+
+	@Test
+	public void testExtensionPointWithoutSchemaIsReported() throws Exception {
+		String bundleProvider = "provider.reportnoschema";
+		createProviderBundle(bundleProvider);
+		IProject projectWithout = createConsumerBundleWithoutSchema("consumer.reportnoschema", bundleProvider,
+				"<client label=\"label\"/>");
+		IProject projectWith = createConsumerBundle("consumer.reportschema", bundleProvider,
+				"<client label=\"label\"/>");
+
+		buildProjects();
+		assertEquals(Set.of("consumer.reportnoschema." + EXTENSION_POINT_ID),
+				ExtensionPackageFinder.findExtensionPointsWithoutSchema(PluginRegistry.findModel(projectWithout)));
+		assertEquals(Set.of(),
+				ExtensionPackageFinder.findExtensionPointsWithoutSchema(PluginRegistry.findModel(projectWith)));
+	}
+
+	@Test
+	public void testOrganizeManifestsReportsExtensionPointWithoutSchemaWithConfiguredSeverity() throws Exception {
+		String bundleProvider = "provider.severity";
+		createProviderBundle(bundleProvider);
+		IProject projectConsumer = createConsumerBundleWithoutSchema("consumer.severity", bundleProvider,
+				"<client label=\"label\"/>");
+
+		buildProjects();
+		String extensionPoint = "consumer.severity." + EXTENSION_POINT_ID;
+		RefactoringStatus ignored = checkOrganizeManifests(projectConsumer, true, RefactoringStatus.OK);
+		assertTrue("Missing schemas must not be reported by default", ignored.isOK());
+
+		RefactoringStatus warning = checkOrganizeManifests(projectConsumer, true, RefactoringStatus.WARNING);
+		assertEquals(RefactoringStatus.WARNING, warning.getSeverity());
+		assertTrue("The warning must name the extension point without schema",
+				warning.getEntryWithHighestSeverity().getMessage().contains(extensionPoint));
+
+		RefactoringStatus strict = checkOrganizeManifests(projectConsumer, true, RefactoringStatus.FATAL);
+		assertTrue("Missing schemas must make the refactoring fail in strict mode", strict.hasFatalError());
+		assertTrue("The error must name the extension point without schema",
+				strict.getEntryWithHighestSeverity().getMessage().contains(extensionPoint));
+
+		RefactoringStatus notRemoving = checkOrganizeManifests(projectConsumer, false, RefactoringStatus.FATAL);
+		assertTrue("Missing schemas must not be reported if unused dependencies are not removed",
+				notRemoving.isOK());
+	}
+
+	@Test
+	public void testOrganizeManifestsDoesNotReportExtensionPointWithSchema() throws Exception {
+		String bundleProvider = "provider.strictschema";
+		createProviderBundle(bundleProvider);
+		IProject projectConsumer = createConsumerBundle("consumer.strictschema", bundleProvider,
+				"<client label=\"label\"/>");
+
+		buildProjects();
+		assertTrue("An extension point with schema must not be reported in strict mode",
+				checkOrganizeManifests(projectConsumer, true, RefactoringStatus.FATAL).isOK());
+	}
+
+	private static RefactoringStatus checkOrganizeManifests(IProject project, boolean unusedDependencies,
+			int missingSchemaSeverity) throws CoreException {
+		OrganizeManifestsProcessor processor = new OrganizeManifestsProcessor(List.of(project));
+		processor.setUnusedDependencies(unusedDependencies);
+		processor.setMissingSchemaSeverity(missingSchemaSeverity);
+		return processor.checkFinalConditions(new NullProgressMonitor(), null);
 	}
 
 	@Test
@@ -255,6 +323,18 @@ public class GatherUnusedDependenciesOperationExtensionsTest {
 		IProject project = createJavaPluginProject(symbolicName, null, true);
 		addRequiredBundle(project, providerSymbolicName);
 		createExtensionFile(project, "plugin", "plugin.xml", symbolicName, true, extensionContent);
+		return project;
+	}
+
+	/**
+	 * Creates a plug-in project like {@link #createConsumerBundle}, but without a
+	 * schema for its extension point.
+	 */
+	private static IProject createConsumerBundleWithoutSchema(String symbolicName, String providerSymbolicName,
+			String extensionContent) throws Exception {
+		IProject project = createJavaPluginProject(symbolicName, null, true);
+		addRequiredBundle(project, providerSymbolicName);
+		createExtensionFile(project, "plugin", "plugin.xml", symbolicName, false, extensionContent);
 		return project;
 	}
 

@@ -16,6 +16,7 @@ import java.io.InputStream;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -62,16 +63,30 @@ public final class ExtensionPackageFinder {
 	 * reference in its plugin.xml/fragment.xml.
 	 */
 	public static Set<String> findPackagesInExtensions(IPluginModelBase model) {
+		return loadExtensions(model).flatMap(ExtensionPackageFinder::findPackages).collect(Collectors.toSet());
+	}
+
+	/**
+	 * Returns the ids of the extension points that the extensions of the given
+	 * model contribute to but for which no schema is available, sorted by id.
+	 * Types referenced by these extensions are not found by
+	 * {@link #findPackagesInExtensions(IPluginModelBase)}.
+	 */
+	public static Set<String> findExtensionPointsWithoutSchema(IPluginModelBase model) {
+		return loadExtensions(model).map(IPluginExtension::getPoint).filter(point -> findSchema(point) == null)
+				.collect(Collectors.toCollection(TreeSet::new));
+	}
+
+	private static Stream<IPluginExtension> loadExtensions(IPluginModelBase model) {
 		IResource resource = model.getUnderlyingResource();
 		if (resource == null) {
-			return Set.of();
+			return Stream.empty();
 		}
 		IPluginModelBase extensionsModel = loadExtensionsModel(model, resource.getProject());
 		if (extensionsModel == null) {
-			return Set.of();
+			return Stream.empty();
 		}
-		return Arrays.stream(extensionsModel.getPluginBase().getExtensions())
-				.flatMap(ExtensionPackageFinder::findPackages).collect(Collectors.toSet());
+		return Arrays.stream(extensionsModel.getPluginBase().getExtensions());
 	}
 
 	/**
@@ -101,8 +116,12 @@ public final class ExtensionPackageFinder {
 	}
 
 	private static Stream<String> findPackages(IPluginExtension extension) {
-		ISchema schema = PDECore.getDefault().getSchemaRegistry().getSchema(extension.getPoint());
+		ISchema schema = findSchema(extension.getPoint());
 		return schema != null ? findPackages(schema, extension) : Stream.empty();
+	}
+
+	private static ISchema findSchema(String extensionPointId) {
+		return PDECore.getDefault().getSchemaRegistry().getSchema(extensionPointId);
 	}
 
 	private static Stream<String> findPackages(ISchema schema, IPluginParent parent) {

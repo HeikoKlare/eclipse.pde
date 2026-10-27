@@ -27,11 +27,17 @@ public class ShowResultsAction extends Action {
 	private final IPluginModelBase fModel;
 	Object[] fUnusedImports;
 	private final boolean fReadOnly;
+	private final String fWarning;
 
-	public ShowResultsAction(IPluginModelBase model, Object[] unused, boolean readOnly) {
+	/**
+	 * @param warning a warning to show along with the unused dependencies, or
+	 *                {@code null} if there is none
+	 */
+	public ShowResultsAction(IPluginModelBase model, Object[] unused, boolean readOnly, String warning) {
 		fModel = model;
 		fUnusedImports = unused;
 		fReadOnly = readOnly;
+		fWarning = warning;
 	}
 
 	@Override
@@ -44,7 +50,7 @@ public class ShowResultsAction extends Action {
 				// Launched from Dependencies View, show information dialog
 				dialog = getUnusedDependeciesInfoDialog();
 			} else {
-				dialog = new UnusedImportsDialog(PDEPlugin.getActiveWorkbenchShell(), fModel, fUnusedImports);
+				dialog = new UnusedImportsDialog(PDEPlugin.getActiveWorkbenchShell(), fModel, fUnusedImports, fWarning);
 				dialog.create();
 			}
 			dialog.getShell().setText(PDEUIMessages.UnusedDependencies_title);
@@ -61,6 +67,9 @@ public class ShowResultsAction extends Action {
 		dialog.setContentProvider(ArrayContentProvider.getInstance());
 		dialog.setLabelProvider(PDEPlugin.getDefault().getLabelProvider());
 		dialog.setInput(fUnusedImports);
+		if (fWarning != null) {
+			dialog.setMessage(fWarning);
+		}
 		dialog.create();
 		dialog.getTableViewer().setComparator(new UnusedImportsDialog.Comparator());
 		return dialog;

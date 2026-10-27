@@ -18,6 +18,7 @@ package org.eclipse.pde.internal.ui.wizards.tools;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.runtime.CoreException;
@@ -27,6 +28,7 @@ import org.eclipse.core.runtime.SubMonitor;
 import org.eclipse.ltk.core.refactoring.Change;
 import org.eclipse.ltk.core.refactoring.CompositeChange;
 import org.eclipse.ltk.core.refactoring.RefactoringStatus;
+import org.eclipse.ltk.core.refactoring.RefactoringStatusEntry;
 import org.eclipse.ltk.core.refactoring.participants.CheckConditionsContext;
 import org.eclipse.ltk.core.refactoring.participants.RefactoringParticipant;
 import org.eclipse.ltk.core.refactoring.participants.RefactoringProcessor;
@@ -35,12 +37,14 @@ import org.eclipse.osgi.util.NLS;
 import org.eclipse.pde.core.IBaseModel;
 import org.eclipse.pde.core.plugin.IPluginModelBase;
 import org.eclipse.pde.core.plugin.ISharedExtensionsModel;
+import org.eclipse.pde.core.plugin.PluginRegistry;
 import org.eclipse.pde.internal.core.ibundle.IBundle;
 import org.eclipse.pde.internal.core.ibundle.IBundlePluginModelBase;
 import org.eclipse.pde.internal.ui.PDEPlugin;
 import org.eclipse.pde.internal.ui.PDEUIMessages;
 import org.eclipse.pde.internal.ui.search.dependencies.AddNewDependenciesOperation;
 import org.eclipse.pde.internal.ui.search.dependencies.CalculateUsesOperation;
+import org.eclipse.pde.internal.ui.search.dependencies.ExtensionPackageFinder;
 import org.eclipse.pde.internal.ui.search.dependencies.GatherUnusedDependenciesOperation;
 import org.eclipse.pde.internal.ui.util.ModelModification;
 import org.eclipse.pde.internal.ui.util.PDEModelUtility;
@@ -77,6 +81,7 @@ public class OrganizeManifestsProcessor extends RefactoringProcessor implements 
 	List<IProject> fProjectList;
 	private IProject fCurrentProject;
 	private boolean fComputeImports;
+	private int fMissingSchemaSeverity = RefactoringStatus.OK;
 
 	public OrganizeManifestsProcessor(List<IProject> projects) {
 		fProjectList = projects;
@@ -91,7 +96,29 @@ public class OrganizeManifestsProcessor extends RefactoringProcessor implements 
 				status.addFatalError(PDEUIMessages.OrganizeManifestsProcessor_invalidParam);
 			}
 		}
+		if (fUnusedDependencies && fMissingSchemaSeverity != RefactoringStatus.OK) {
+			checkExtensionSchemas(status);
+		}
 		return status;
+	}
+
+	/**
+	 * Reports the extension points without schema, as dependencies only needed by
+	 * their extensions cannot be detected and would be removed as unused.
+	 */
+	private void checkExtensionSchemas(RefactoringStatus status) {
+		for (IProject project : fProjectList) {
+			IPluginModelBase model = PluginRegistry.findModel(project);
+			Set<String> extensionPoints = model != null
+					? ExtensionPackageFinder.findExtensionPointsWithoutSchema(model)
+					: Set.of();
+			if (!extensionPoints.isEmpty()) {
+				String message = NLS.bind(PDEUIMessages.OrganizeManifestsProcessor_missingSchemas, project.getName(),
+						String.join(", ", extensionPoints)); //$NON-NLS-1$
+				status.addEntry(fMissingSchemaSeverity, message, null, PDEPlugin.getPluginId(),
+						RefactoringStatusEntry.NO_CODE);
+			}
+		}
 	}
 
 	@Override
@@ -350,5 +377,17 @@ public class OrganizeManifestsProcessor extends RefactoringProcessor implements 
 
 	public void setComputeImports(boolean computeImports) {
 		this.fComputeImports = computeImports;
+	}
+
+	/**
+	 * Sets how extensions are reported whose extension point has no schema when
+	 * unused dependencies are removed, as the types they reference cannot be
+	 * found. {@link RefactoringStatus#OK} (the default) does not report them,
+	 * {@link RefactoringStatus#WARNING} reports them for confirmation and
+	 * {@link RefactoringStatus#ERROR} or {@link RefactoringStatus#FATAL} makes
+	 * the refactoring fail.
+	 */
+	public void setMissingSchemaSeverity(int severity) {
+		fMissingSchemaSeverity = severity;
 	}
 }

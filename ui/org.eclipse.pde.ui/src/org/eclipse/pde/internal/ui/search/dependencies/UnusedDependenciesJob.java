@@ -14,13 +14,16 @@
 package org.eclipse.pde.internal.ui.search.dependencies;
 
 import java.lang.reflect.InvocationTargetException;
+import java.util.Set;
 
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.core.runtime.jobs.Job;
 import org.eclipse.jface.action.Action;
+import org.eclipse.osgi.util.NLS;
 import org.eclipse.pde.core.plugin.IPluginModelBase;
+import org.eclipse.pde.internal.ui.PDEUIMessages;
 import org.eclipse.swt.widgets.Display;
 
 public class UnusedDependenciesJob extends Job {
@@ -39,8 +42,11 @@ public class UnusedDependenciesJob extends Job {
 		try {
 			GatherUnusedDependenciesOperation udo = new GatherUnusedDependenciesOperation(fModel);
 			udo.run(monitor);
+			Set<String> extensionPoints = ExtensionPackageFinder.findExtensionPointsWithoutSchema(fModel);
+			String warning = extensionPoints.isEmpty() ? null
+					: NLS.bind(PDEUIMessages.UnusedDependencies_missingSchemas, String.join(", ", extensionPoints)); //$NON-NLS-1$
 			// List can contain IPluginImports or ImportPackageObjects
-			showResults(udo.getList().toArray());
+			showResults(udo.getList().toArray(), warning);
 		} catch (InvocationTargetException | InterruptedException e) {
 		} finally {
 			monitor.done();
@@ -48,11 +54,11 @@ public class UnusedDependenciesJob extends Job {
 		return Status.OK_STATUS;
 	}
 
-	private Action getShowResultsAction(Object[] unused) {
-		return new ShowResultsAction(fModel, unused, fReadOnly);
+	private Action getShowResultsAction(Object[] unused, String warning) {
+		return new ShowResultsAction(fModel, unused, fReadOnly, warning);
 	}
 
-	protected void showResults(final Object[] unused) {
-		Display.getDefault().asyncExec(() -> getShowResultsAction(unused).run());
+	protected void showResults(final Object[] unused, String warning) {
+		Display.getDefault().asyncExec(() -> getShowResultsAction(unused, warning).run());
 	}
 }

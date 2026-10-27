@@ -25,6 +25,7 @@ import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.jface.viewers.IStructuredSelection;
+import org.eclipse.ltk.core.refactoring.RefactoringStatus;
 import org.eclipse.ltk.ui.refactoring.RefactoringWizardOpenOperation;
 import org.eclipse.pde.internal.core.project.PDEProject;
 import org.eclipse.pde.internal.ui.PDEPlugin;
@@ -76,6 +77,7 @@ public class OrganizeManifestsAction extends AbstractHandler {
 			}
 			if (!projects.isEmpty()) {
 				OrganizeManifestsProcessor processor = new OrganizeManifestsProcessor(projects);
+				processor.setMissingSchemaSeverity(RefactoringStatus.WARNING);
 				PDERefactor refactor = new PDERefactor(processor);
 				OrganizeManifestsWizard wizard = new OrganizeManifestsWizard(refactor);
 				RefactoringWizardOpenOperation op = new RefactoringWizardOpenOperation(wizard);

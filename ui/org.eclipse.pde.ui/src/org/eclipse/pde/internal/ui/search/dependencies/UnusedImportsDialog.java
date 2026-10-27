@@ -14,8 +14,10 @@
  *******************************************************************************/
 package org.eclipse.pde.internal.ui.search.dependencies;
 
+import org.eclipse.jface.dialogs.Dialog;
 import org.eclipse.jface.dialogs.IDialogConstants;
 import org.eclipse.jface.dialogs.TrayDialog;
+import org.eclipse.jface.resource.JFaceResources;
 import org.eclipse.jface.viewers.CheckboxTableViewer;
 import org.eclipse.jface.viewers.IStructuredContentProvider;
 import org.eclipse.jface.viewers.Viewer;
@@ -31,12 +33,14 @@ import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
+import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.ui.PlatformUI;
 
 public class UnusedImportsDialog extends TrayDialog {
 	private final IPluginModelBase model;
 	private final Object[] unused;
+	private final String warning;
 	private final WizardCheckboxTablePart checkboxTablePart;
 	private CheckboxTableViewer choiceViewer;
 
@@ -61,11 +65,16 @@ public class UnusedImportsDialog extends TrayDialog {
 		}
 	}
 
-	public UnusedImportsDialog(Shell parentShell, IPluginModelBase model, Object[] unused) {
+	/**
+	 * @param warning a warning to show above the unused dependencies, or
+	 *                {@code null} if there is none
+	 */
+	public UnusedImportsDialog(Shell parentShell, IPluginModelBase model, Object[] unused, String warning) {
 		super(parentShell);
 		setShellStyle(getShellStyle() | SWT.RESIZE);
 		this.model = model;
 		this.unused = unused;
+		this.warning = warning;
 		checkboxTablePart = new WizardCheckboxTablePart(PDEUIMessages.UnusedDependencies_remove);
 	}
 
@@ -91,6 +100,9 @@ public class UnusedImportsDialog extends TrayDialog {
 		GridData gd = new GridData(GridData.FILL_BOTH);
 		container.setLayoutData(gd);
 
+		if (warning != null) {
+			createWarning(container);
+		}
 		checkboxTablePart.createControl(container);
 		choiceViewer = checkboxTablePart.getTableViewer();
 		choiceViewer.setContentProvider(new ContentProvider());
@@ -104,6 +116,23 @@ public class UnusedImportsDialog extends TrayDialog {
 		choiceViewer.setInput(PDEPlugin.getDefault());
 		checkboxTablePart.setSelection(unused);
 		return container;
+	}
+
+	private void createWarning(Composite container) {
+		Composite warningArea = new Composite(container, SWT.NONE);
+		GridLayout layout = new GridLayout(2, false);
+		layout.marginWidth = layout.marginHeight = 0;
+		warningArea.setLayout(layout);
+		GridData gd = new GridData(GridData.FILL_HORIZONTAL);
+		gd.horizontalSpan = 2;
+		gd.widthHint = convertWidthInCharsToPixels(70);
+		warningArea.setLayoutData(gd);
+		Label image = new Label(warningArea, SWT.NONE);
+		image.setImage(JFaceResources.getImage(Dialog.DLG_IMG_MESSAGE_WARNING));
+		image.setLayoutData(new GridData(SWT.BEGINNING, SWT.BEGINNING, false, false));
+		Label text = new Label(warningArea, SWT.WRAP);
+		text.setText(warning);
+		text.setLayoutData(new GridData(SWT.FILL, SWT.BEGINNING, true, false));
 	}
 
 	@Override

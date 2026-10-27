@@ -143,6 +143,7 @@ public class PDEUIMessages extends NLS {
 	public static String OrganizeManifestsProcessor_invalidParam;
 
 	public static String OrganizeManifestsProcessor_rootMessage;
+	public static String OrganizeManifestsProcessor_missingSchemas;
 	public static String ConvertAutomaticManifestsProcessor_rootMessage;
 	public static String ConvertAutomaticManifestsProcessor_changeProject;
 
@@ -1727,6 +1728,7 @@ public class PDEUIMessages extends NLS {
 	public static String UnusedDependencies_remove;
 	public static String UnusedDependencies_analyze;
 	public static String UnusedDependencies_unused;
+	public static String UnusedDependencies_missingSchemas;
 	public static String RemoveExportPkgs_label;
 	public static String RemoveExportPkgs_description;
 
